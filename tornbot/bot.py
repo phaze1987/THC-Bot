@@ -16,6 +16,7 @@ def build_bot() -> commands.Bot:
     register.setup(bot)
     bs.setup(bot)
     admin.setup(bot)
+    misc.setup(bot)
 
     @bot.event
     async def on_ready():

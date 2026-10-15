@@ -441,14 +441,14 @@ async def bs(interaction: discord.Interaction):
     # Save the new snapshot
     db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
-    # Screenshot-style text block (ignore work stats for now)
+    # Rows in table
     rows = [
-        ("Str:", "strength"),
-        ("Spd:", "speed"),
-        ("Dex:", "dexterity"),
-        ("Def:", "defense"),
+        ("Strength:", "strength"),
+        ("Speed:", "speed"),
+        ("Dexterity:", "dexterity"),
+        ("Defense:", "defense"),
         ("", None),
-        ("Tot:", "total"),
+        ("Total Battlestats:", "total"),
     ]
 
     formatted = []
@@ -467,7 +467,7 @@ async def bs(interaction: discord.Interaction):
     after_w = max(len(r[2]) for r in formatted)
 
     lines = []
-    lines.append("Old Battle Stats ---> New Battle Stats")
+    lines.append("Recorded Battle Stats ---> Latest Battle Stats")
     lines.append("")
     for (label, before_s, after_s, pct_s) in formatted:
         if before_s == "" and after_s == "":
@@ -485,7 +485,7 @@ async def bs(interaction: discord.Interaction):
         title=f"Changes to Stats for {who}",
         url=torn_profile_url,
         description=block,
-        colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
+        colour=discord.Colour.green() if deltas["total"] > 0 else discord.Colour.red(),
     )
     embed.set_footer(text=f"Changes since: {last_at} • Stats updated: {now_iso}")
 

@@ -287,7 +287,6 @@ async def bs(interaction: discord.Interaction):
     prev = db_get_latest_snapshot(interaction.user.id)
     now_iso = datetime.utcnow().replace(microsecond=0).isoformat() + " UTC"
 
-
     # First run: store snapshot and show current only
     if prev is None:
         db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
@@ -305,7 +304,6 @@ async def bs(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed)
         return
 
-    # Deltas
     prev_stats = {
         "strength": int(prev["strength"]),
         "defense": int(prev["defense"]),
@@ -329,46 +327,46 @@ async def bs(interaction: discord.Interaction):
 
     total_pct = pct_change(deltas["total"], prev_stats["total"])
 
-    # Biggest gain by % among the four stats
     stat_names = ["strength", "defense", "speed", "dexterity"]
     stat_pct = {k: pct_change(deltas[k], prev_stats[k]) for k in stat_names}
     biggest = max(stat_names, key=lambda k: stat_pct[k])
     biggest_label = biggest.capitalize()
     biggest_pct = stat_pct[biggest]
 
-    # Save the new snapshot after computing deltas
     last_at = prev["updated_at"]
+    if "UTC" not in str(last_at):
+        last_at = f"{last_at} UTC"
+
+    # Save the new snapshot
     db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
     embed = discord.Embed(
         title=f"Battle Stats — {interaction.user.display_name} [{interaction.user.id}]",
         description=(
-            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n",
-            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n",
+            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
+            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
             f"**Since last /bs**"
-        )
+        ),
         colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
     )
 
-    def stat_block(label: str, key: str) -> str:
+    def stat_block(key: str) -> str:
         before = prev_stats[key]
         after = current[key]
         delta = deltas[key]
         pct = pct_change(delta, before)
-        return (
-            f"{before:,} → {after:,}\n"
-            f"{delta:+,} ({pct:+.2f}%)"
-        )
+        return f"{before:,} → {after:,}\n{delta:+,} ({pct:+.2f}%)"
 
-    embed.add_field(name="Strength", value=stat_block("Strength", "strength"), inline=False)
-    embed.add_field(name="Defense", value=stat_block("Defense", "defense"), inline=False)
-    embed.add_field(name="Speed", value=stat_block("Speed", "speed"), inline=False)
-    embed.add_field(name="Dexterity", value=stat_block("Dexterity", "dexterity"), inline=False)
-    embed.add_field(name="Total", value=stat_block("Total", "total"), inline=False)
+    embed.add_field(name="Strength", value=stat_block("strength"), inline=False)
+    embed.add_field(name="Defense", value=stat_block("defense"), inline=False)
+    embed.add_field(name="Speed", value=stat_block("speed"), inline=False)
+    embed.add_field(name="Dexterity", value=stat_block("dexterity"), inline=False)
+    embed.add_field(name="Total", value=stat_block("total"), inline=False)
 
     embed.set_footer(text=f"Compared to last /bs • {last_at}")
 
     await interaction.followup.send(embed=embed)
+
 
 
 @bot.tree.command(name="view_bs", description="(Admin) View a user's current battlestats")

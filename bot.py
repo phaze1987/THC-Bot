@@ -285,7 +285,7 @@ async def bs(interaction: discord.Interaction):
         return
 
     prev = db_get_latest_snapshot(interaction.user.id)
-    now_iso = datetime.utcnow().replace(microsecond=0).isoformat() + " UTC"
+    now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     # First run: store snapshot and show current only
     if prev is None:

@@ -1,7 +1,11 @@
 services:
   bot:
-    build: .
-    env_file: .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m tornbot.bot
+    env_file:
+      - .env
     restart: unless-stopped
     volumes:
       - ./data:/app/data

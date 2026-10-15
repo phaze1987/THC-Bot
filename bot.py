@@ -21,6 +21,7 @@ TORN_BASE_URL = "https://api.torn.com/v2"
 
 WIPE_COMMANDS = os.getenv("WIPE_COMMANDS", "0") == "1"
 
+
 def parse_id_set(raw: str) -> set[int]:
     if not raw:
         return set()
@@ -32,6 +33,7 @@ def parse_id_set(raw: str) -> set[int]:
         out.add(int(part))
     return out
 
+
 ADMIN_ROLE_IDS = parse_id_set(os.getenv("ADMIN_ROLE_IDS", ""))
 
 # ----------------------------
@@ -41,16 +43,21 @@ ADMIN_ROLE_IDS = parse_id_set(os.getenv("ADMIN_ROLE_IDS", ""))
 # ----------------------------
 def _fernet() -> Fernet:
     if not KEY_ENCRYPTION_SECRET or len(KEY_ENCRYPTION_SECRET) < 16:
-        raise RuntimeError("KEY_ENCRYPTION_SECRET is missing/too short. Set it in .env (16+ chars, ideally 32+).")
+        raise RuntimeError(
+            "KEY_ENCRYPTION_SECRET is missing/too short. Set it in .env (16+ chars, ideally 32+)."
+        )
     digest = hashlib.sha256(KEY_ENCRYPTION_SECRET.encode("utf-8")).digest()
     fernet_key = base64.urlsafe_b64encode(digest)
     return Fernet(fernet_key)
 
+
 def encrypt_api_key(api_key: str) -> bytes:
     return _fernet().encrypt(api_key.encode("utf-8"))
 
+
 def decrypt_api_key(ciphertext: bytes) -> str:
     return _fernet().decrypt(ciphertext).decode("utf-8")
+
 
 # ----------------------------
 # DB
@@ -60,18 +67,21 @@ def db_connect():
     con.row_factory = sqlite3.Row
     return con
 
+
 def db_init():
     con = db_connect()
     cur = con.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS users (
         discord_user_id INTEGER PRIMARY KEY,
         torn_api_key_encrypted BLOB NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     )
-    """)
+    """
+    )
 
     # Add columns if they don't exist (safe to run repeatedly)
     cur.execute("PRAGMA table_info(users)")
@@ -84,7 +94,8 @@ def db_init():
         cur.execute("ALTER TABLE users ADD COLUMN torn_username TEXT")
 
     # Latest battlestats snapshot per user (for /bs deltas)
-    cur.execute("""
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS battlestats_latest (
         discord_user_id INTEGER PRIMARY KEY,
         updated_at TEXT NOT NULL,
@@ -94,41 +105,56 @@ def db_init():
         dexterity INTEGER NOT NULL,
         total INTEGER NOT NULL
     )
-    """)
+    """
+    )
 
     con.commit()
     con.close()
 
+
 def db_get_user_api_key(discord_user_id: int) -> str | None:
     con = db_connect()
     cur = con.cursor()
-    cur.execute("SELECT torn_api_key_encrypted FROM users WHERE discord_user_id = ?", (discord_user_id,))
+    cur.execute(
+        "SELECT torn_api_key_encrypted FROM users WHERE discord_user_id = ?",
+        (discord_user_id,),
+    )
     row = cur.fetchone()
     con.close()
     if not row:
         return None
     return decrypt_api_key(row["torn_api_key_encrypted"])
 
+
 def db_get_user_torn_identity(discord_user_id: int):
     con = db_connect()
     cur = con.cursor()
-    cur.execute("SELECT torn_user_id, torn_username FROM users WHERE discord_user_id = ?", (discord_user_id,))
+    cur.execute(
+        "SELECT torn_user_id, torn_username FROM users WHERE discord_user_id = ?",
+        (discord_user_id,),
+    )
     row = cur.fetchone()
     con.close()
     return row
+
 
 def db_get_latest_snapshot(discord_user_id: int):
     con = db_connect()
     cur = con.cursor()
-    cur.execute("SELECT * FROM battlestats_latest WHERE discord_user_id = ?", (discord_user_id,))
+    cur.execute(
+        "SELECT * FROM battlestats_latest WHERE discord_user_id = ?",
+        (discord_user_id,),
+    )
     row = cur.fetchone()
     con.close()
     return row
 
+
 def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso: str):
     con = db_connect()
     cur = con.cursor()
-    cur.execute("""
+    cur.execute(
+        """
     INSERT INTO battlestats_latest (discord_user_id, updated_at, strength, speed, defense, dexterity, total)
     VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(discord_user_id) DO UPDATE SET
@@ -138,17 +164,20 @@ def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso:
         defense=excluded.defense,
         dexterity=excluded.dexterity,
         total=excluded.total
-    """, (
-        discord_user_id,
-        updated_at_iso,
-        stats["strength"],
-        stats["speed"],
-        stats["defense"],
-        stats["dexterity"],
-        stats["total"],
-    ))
+    """,
+        (
+            discord_user_id,
+            updated_at_iso,
+            stats["strength"],
+            stats["speed"],
+            stats["defense"],
+            stats["dexterity"],
+            stats["total"],
+        ),
+    )
     con.commit()
     con.close()
+
 
 # ----------------------------
 # Torn API (v2)
@@ -160,6 +189,7 @@ def torn_headers(api_key: str) -> dict:
         "Accept": "application/json",
         "User-Agent": "THCBot/1.0",
     }
+
 
 async def torn_fetch_battlestats(api_key: str) -> dict:
     url = f"{TORN_BASE_URL}/user/battlestats"
@@ -202,6 +232,7 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
         "total": total,
     }
 
+
 async def torn_fetch_identity(api_key: str) -> dict:
     url = f"{TORN_BASE_URL}/user/basic"
 
@@ -233,23 +264,25 @@ async def torn_fetch_identity(api_key: str) -> dict:
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+
 def is_admin_member(member: discord.Member) -> bool:
     if member.guild_permissions.administrator:
         return True
     role_ids = {r.id for r in member.roles}
     return len(role_ids.intersection(ADMIN_ROLE_IDS)) > 0
 
+
 @bot.event
 async def on_ready():
     db_init()
 
     # Sync slash commands
-    WIPE_COMMANDS = os.getenv("WIPE_COMMANDS", "0") == "1"
+    wipe_commands = os.getenv("WIPE_COMMANDS", "0") == "1"
 
     if DEV_GUILD_ID:
         guild = discord.Object(id=DEV_GUILD_ID)
 
-        if WIPE_COMMANDS:
+        if wipe_commands:
             bot.tree.clear_commands(guild=guild)
             await bot.tree.sync(guild=guild)
             print(f"WIPED guild commands for {DEV_GUILD_ID}. Set WIPE_COMMANDS=0 and restart.")
@@ -265,13 +298,16 @@ async def on_ready():
 
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
+
 @bot.tree.command(name="ping", description="Check if the bot is alive")
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("Pong!")
 
+
 @bot.tree.command(name="hello", description="Say hello")
 async def hello(interaction: discord.Interaction):
     await interaction.response.send_message(f"Hello, {interaction.user.mention}!")
+
 
 @bot.tree.command(name="register", description="Register your Torn API key (stored securely)")
 async def register(interaction: discord.Interaction, api_key: str):
@@ -294,7 +330,8 @@ async def register(interaction: discord.Interaction, api_key: str):
 
     con = db_connect()
     cur = con.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO users (discord_user_id, torn_api_key_encrypted, torn_user_id, torn_username, created_at, updated_at)
         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
         ON CONFLICT(discord_user_id) DO UPDATE SET
@@ -302,15 +339,18 @@ async def register(interaction: discord.Interaction, api_key: str):
             torn_user_id=excluded.torn_user_id,
             torn_username=excluded.torn_username,
             updated_at=datetime('now')
-    """, (interaction.user.id, enc, ident["torn_user_id"], ident["torn_username"]))
+    """,
+        (interaction.user.id, enc, ident["torn_user_id"], ident["torn_username"]),
+    )
     con.commit()
     con.close()
 
     await interaction.followup.send(
         f"Registered successfully for **{ident['torn_username']} [{ident['torn_user_id']}]**.\n"
         f"Current total: {stats['total']:,}",
-        ephemeral=True
+        ephemeral=True,
     )
+
 
 @bot.tree.command(name="bs", description="Update and show your battle stat gains since last update")
 async def bs(interaction: discord.Interaction):
@@ -337,26 +377,29 @@ async def bs(interaction: discord.Interaction):
     else:
         who = f"{interaction.user.display_name} [{interaction.user.id}]"
 
+    # Build Torn profile URL (if we have a Torn ID)
+    torn_id = None
+    if ident_row and ident_row["torn_user_id"] is not None:
+        torn_id = int(ident_row["torn_user_id"])
+    torn_profile_url = f"https://www.torn.com/profiles.php?XID={torn_id}" if torn_id else None
+
     # First run: store snapshot and show current only
     if prev is None:
         db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
-        torn_profile_url = "https://www.torn.com/profiles.php?XID=4414988"
-
-        if ident_row and ident_row["torn_user_id"]:
-            torn_profile_url = f"https://www.torn.com/profiles.php?XID={int(ident_row['torn_user_id'])}"
-            embed = discord.Embed(
+        embed = discord.Embed(
             title=f"Changes to Stats for {who}",
             url=torn_profile_url,
             description=(
-            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
-            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
-            f"**Since last /bs**"
-        ),
-    colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
-)
-
+                f"Total {current['total']:,}\n"
+                f"First snapshot saved.\n"
+                f"Run **/bs** again to see changes."
+            ),
+            colour=discord.Colour.blurple(),
+        )
         embed.set_footer(text=f"Saved at: {now_iso}")
+
+        print("DEBUG embed.url =", embed.url)
         await interaction.followup.send(embed=embed)
         return
 
@@ -398,6 +441,7 @@ async def bs(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title=f"Changes to Stats for {who}",
+        url=torn_profile_url,
         description=(
             f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
             f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
@@ -425,6 +469,7 @@ async def bs(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed)
 
+
 @bot.tree.command(name="view_bs", description="(Admin) View a user's current battlestats")
 @app_commands.describe(user="User to view")
 async def view_bs(interaction: discord.Interaction, user: discord.Member):
@@ -442,7 +487,9 @@ async def view_bs(interaction: discord.Interaction, user: discord.Member):
     try:
         current = await torn_fetch_battlestats(api_key)
     except Exception as e:
-        await interaction.followup.send(f"Failed to fetch battlestats for {user.mention}: {e}", ephemeral=True)
+        await interaction.followup.send(
+            f"Failed to fetch battlestats for {user.mention}: {e}", ephemeral=True
+        )
         return
 
     msg = (
@@ -452,6 +499,7 @@ async def view_bs(interaction: discord.Interaction, user: discord.Member):
         f"DEX {current['dexterity']:,}; TOTAL {current['total']:,}"
     )
     await interaction.followup.send(msg, ephemeral=True)
+
 
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN is not set in .env")

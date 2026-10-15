@@ -41,4 +41,5 @@ def setup(bot: discord.Client):
             f"STR {current['strength']:,}; SPD {current['speed']:,}; DEF {current['defense']:,}; "
             f"DEX {current['dexterity']:,}; TOTAL {current['total']:,}"
         )
-        await interaction.follow
+        await interaction.followup.send(msg, ephemeral=True)
+

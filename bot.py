@@ -345,7 +345,7 @@ async def bs(interaction: discord.Interaction):
 
         if ident_row and ident_row["torn_user_id"]:
             torn_profile_url = f"https://www.torn.com/profiles.php?XID={int(ident_row['torn_user_id'])}"
-
+            print (torn_profile_url)
             embed = discord.Embed(
             title=f"Changes to Stats for {who}",
             url=torn_profile_url,

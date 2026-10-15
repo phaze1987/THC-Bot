@@ -341,7 +341,8 @@ async def bs(interaction: discord.Interaction):
     if prev is None:
         db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
-        torn_profile_url = None
+        torn_profile_url = "https://www.torn.com/profiles.php?XID=4414988"
+
         if ident_row and ident_row["torn_user_id"]:
             torn_profile_url = f"https://www.torn.com/profiles.php?XID={int(ident_row['torn_user_id'])}"
 

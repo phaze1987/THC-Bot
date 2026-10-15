@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord import app_commands
 from cryptography.fernet import Fernet
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ----------------------------
 # ENV / CONFIG

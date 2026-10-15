@@ -341,15 +341,21 @@ async def bs(interaction: discord.Interaction):
     if prev is None:
         db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
-        embed = discord.Embed(
+        torn_profile_url = None
+        if ident_row and ident_row["torn_user_id"]:
+            torn_profile_url = f"https://www.torn.com/profiles.php?XID={int(ident_row['torn_user_id'])}"
+
+            embed = discord.Embed(
             title=f"Changes to Stats for {who}",
+            url=torn_profile_url,
             description=(
-                f"Total {current['total']:,}\n"
-                f"First snapshot saved.\n"
-                f"Run **/bs** again to see changes."
-            ),
-            colour=discord.Colour.blurple(),
-        )
+            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
+            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
+            f"**Since last /bs**"
+        ),
+    colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
+)
+
         embed.set_footer(text=f"Saved at: {now_iso}")
         await interaction.followup.send(embed=embed)
         return

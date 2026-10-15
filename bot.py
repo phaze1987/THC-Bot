@@ -357,7 +357,6 @@ async def bs(interaction: discord.Interaction):
 )
 
         embed.set_footer(text=f"Saved at: {now_iso}")
-        print("DEBUG embed.url =", embed.url)
         await interaction.followup.send(embed=embed)
         return
 
@@ -421,6 +420,8 @@ async def bs(interaction: discord.Interaction):
     embed.add_field(name="Total", value=stat_block("total"), inline=False)
 
     embed.set_footer(text=f"Compared to last /bs • {last_at}")
+
+    print("DEBUG embed.url =", embed.url)
 
     await interaction.followup.send(embed=embed)
 

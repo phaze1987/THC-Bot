@@ -37,6 +37,17 @@ def parse_id_set(raw: str) -> set[int]:
 ADMIN_ROLE_IDS = parse_id_set(os.getenv("ADMIN_ROLE_IDS", ""))
 
 # ----------------------------
+# Formatting helpers (for screenshot-style embed)
+# ----------------------------
+def fmt_int(n: int) -> str:
+    return f"{n:,}"
+
+
+def pad_right(s: str, width: int) -> str:
+    return s + (" " * max(0, width - len(s)))
+
+
+# ----------------------------
 # Encryption (Linux-safe)
 # Fernet requires a 32-byte urlsafe base64 key.
 # We derive one from KEY_ENCRYPTION_SECRET.
@@ -399,7 +410,6 @@ async def bs(interaction: discord.Interaction):
         )
         embed.set_footer(text=f"Saved at: {now_iso}")
 
-        print("DEBUG embed.url =", embed.url)
         await interaction.followup.send(embed=embed)
         return
 
@@ -424,14 +434,6 @@ async def bs(interaction: discord.Interaction):
             return 0.0
         return (delta / base) * 100.0
 
-    total_pct = pct_change(deltas["total"], prev_stats["total"])
-
-    stat_names = ["strength", "defense", "speed", "dexterity"]
-    stat_pct = {k: pct_change(deltas[k], prev_stats[k]) for k in stat_names}
-    biggest = max(stat_names, key=lambda k: stat_pct[k])
-    biggest_label = biggest.capitalize()
-    biggest_pct = stat_pct[biggest]
-
     last_at = prev["updated_at"]
     if "UTC" not in str(last_at):
         last_at = f"{last_at} UTC"
@@ -439,33 +441,53 @@ async def bs(interaction: discord.Interaction):
     # Save the new snapshot
     db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
-    embed = discord.Embed(
-        title=f"Changes to Stats for {who}",
-        url=torn_profile_url,
-        description=(
-            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
-            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
-            f"**Since last /bs**"
-        ),
-        colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
-    )
+    # Screenshot-style text block (ignore work stats for now)
+    rows = [
+        ("Str:", "strength"),
+        ("Spd:", "speed"),
+        ("Dex:", "dexterity"),
+        ("Def:", "defense"),
+        ("", None),
+        ("Tot:", "total"),
+    ]
 
-    def stat_block(key: str) -> str:
+    formatted = []
+    for label, key in rows:
+        if key is None:
+            formatted.append((label, "", "", ""))
+            continue
         before = prev_stats[key]
         after = current[key]
         delta = deltas[key]
         pct = pct_change(delta, before)
-        return f"{before:,} → {after:,}\n{delta:+,} ({pct:+.2f}%)"
+        formatted.append((label, fmt_int(before), fmt_int(after), f"({pct:.2f}%)"))
 
-    embed.add_field(name="Strength", value=stat_block("strength"), inline=False)
-    embed.add_field(name="Defense", value=stat_block("defense"), inline=False)
-    embed.add_field(name="Speed", value=stat_block("speed"), inline=False)
-    embed.add_field(name="Dexterity", value=stat_block("dexterity"), inline=False)
-    embed.add_field(name="Total", value=stat_block("total"), inline=False)
+    label_w = max(len(r[0]) for r in formatted)
+    before_w = max(len(r[1]) for r in formatted)
+    after_w = max(len(r[2]) for r in formatted)
 
-    embed.set_footer(text=f"Compared to last /bs • {last_at}")
+    lines = []
+    lines.append("Old Battle Stats ---> New Battle Stats")
+    lines.append("")
+    for (label, before_s, after_s, pct_s) in formatted:
+        if before_s == "" and after_s == "":
+            lines.append("")
+            continue
+        lines.append(
+            f"{pad_right(label, label_w)}  "
+            f"{pad_right(before_s, before_w)}  --->  "
+            f"{pad_right(after_s, after_w)} {pct_s}"
+        )
 
-    print("DEBUG embed.url =", embed.url)
+    block = "```" + "\n" + "\n".join(lines) + "\n```"
+
+    embed = discord.Embed(
+        title=f"Changes to Stats for {who}",
+        url=torn_profile_url,
+        description=block,
+        colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),
+    )
+    embed.set_footer(text=f"Changes since: {last_at} • Stats updated: {now_iso}")
 
     await interaction.followup.send(embed=embed)
 

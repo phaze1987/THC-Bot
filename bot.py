@@ -18,7 +18,6 @@ DB_PATH = os.getenv("DB_PATH", "/app/data/tornbot.sqlite3")
 KEY_ENCRYPTION_SECRET = os.getenv("KEY_ENCRYPTION_SECRET", "")
 
 TORN_BASE_URL = "https://api.torn.com/v2"
-TORN_COMMENT = "TornAPI"
 
 WIPE_COMMANDS = os.getenv("WIPE_COMMANDS", "0") == "1"
 
@@ -74,6 +73,16 @@ def db_init():
     )
     """)
 
+    # Add columns if they don't exist (safe to run repeatedly)
+    cur.execute("PRAGMA table_info(users)")
+    cols = {row[1] for row in cur.fetchall()}
+
+    if "torn_user_id" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN torn_user_id INTEGER")
+
+    if "torn_username" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN torn_username TEXT")
+
     # Latest battlestats snapshot per user (for /bs deltas)
     cur.execute("""
     CREATE TABLE IF NOT EXISTS battlestats_latest (
@@ -99,6 +108,14 @@ def db_get_user_api_key(discord_user_id: int) -> str | None:
     if not row:
         return None
     return decrypt_api_key(row["torn_api_key_encrypted"])
+
+def db_get_user_torn_identity(discord_user_id: int):
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute("SELECT torn_user_id, torn_username FROM users WHERE discord_user_id = ?", (discord_user_id,))
+    row = cur.fetchone()
+    con.close()
+    return row
 
 def db_get_latest_snapshot(discord_user_id: int):
     con = db_connect()
@@ -135,22 +152,22 @@ def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso:
 
 # ----------------------------
 # Torn API (v2)
-# Base must be https://api.torn.com/v2
-# Endpoint: /user/battlestats
-# Full URL: https://api.torn.com/v2/user/battlestats
+# Base: https://api.torn.com/v2
 # ----------------------------
-async def torn_fetch_battlestats(api_key: str) -> dict:
-    url = f"{TORN_BASE_URL}/user/battlestats"
-    headers = {
+def torn_headers(api_key: str) -> dict:
+    return {
         "Authorization": f"ApiKey {api_key}",
         "Accept": "application/json",
         "User-Agent": "THCBot/1.0",
     }
 
+async def torn_fetch_battlestats(api_key: str) -> dict:
+    url = f"{TORN_BASE_URL}/user/battlestats"
+
     async with aiohttp.ClientSession() as session:
         async with session.get(
             url,
-            headers=headers,
+            headers=torn_headers(api_key),
             timeout=aiohttp.ClientTimeout(total=20),
         ) as resp:
             data = await resp.json()
@@ -165,10 +182,8 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
 
     def stat_value(name: str) -> int:
         v = bs.get(name)
-        # v2 returns objects for the four stats: {"value": ..., "modifier": ..., "modifiers": [...]}
         if isinstance(v, dict) and "value" in v:
             return int(v["value"])
-        # total is usually an int
         if isinstance(v, int):
             return int(v)
         return 0
@@ -187,6 +202,29 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
         "total": total,
     }
 
+async def torn_fetch_identity(api_key: str) -> dict:
+    # Expected (common) shape: {"name": "...", "player_id": 123456, ...}
+    url = f"{TORN_BASE_URL}/user"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            url,
+            headers=torn_headers(api_key),
+            timeout=aiohttp.ClientTimeout(total=20),
+        ) as resp:
+            data = await resp.json()
+
+    if "error" in data:
+        err = data["error"]
+        raise RuntimeError(f"{err.get('error')} (code {err.get('code')})")
+
+    torn_name = data.get("name") or data.get("username")
+    torn_id = data.get("player_id") or data.get("user_id") or data.get("id")
+
+    if not torn_name or not torn_id:
+        raise RuntimeError("Could not read Torn username/ID from /v2/user response")
+
+    return {"torn_username": str(torn_name), "torn_user_id": int(torn_id)}
 
 # ----------------------------
 # Bot
@@ -243,9 +281,10 @@ async def register(interaction: discord.Interaction, api_key: str):
         await interaction.followup.send("That doesn’t look like a valid API key. Try again.", ephemeral=True)
         return
 
-    # Validate against Torn
+    # Validate against Torn + capture identity
     try:
         stats = await torn_fetch_battlestats(api_key)
+        ident = await torn_fetch_identity(api_key)
     except Exception as e:
         await interaction.followup.send(f"Registration failed: {e}", ephemeral=True)
         return
@@ -255,17 +294,20 @@ async def register(interaction: discord.Interaction, api_key: str):
     con = db_connect()
     cur = con.cursor()
     cur.execute("""
-        INSERT INTO users (discord_user_id, torn_api_key_encrypted, created_at, updated_at)
-        VALUES (?, ?, datetime('now'), datetime('now'))
+        INSERT INTO users (discord_user_id, torn_api_key_encrypted, torn_user_id, torn_username, created_at, updated_at)
+        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
         ON CONFLICT(discord_user_id) DO UPDATE SET
             torn_api_key_encrypted=excluded.torn_api_key_encrypted,
+            torn_user_id=excluded.torn_user_id,
+            torn_username=excluded.torn_username,
             updated_at=datetime('now')
-    """, (interaction.user.id, enc))
+    """, (interaction.user.id, enc, ident["torn_user_id"], ident["torn_username"]))
     con.commit()
     con.close()
 
     await interaction.followup.send(
-        f"Registered successfully. Torn battlestats validated.\nCurrent total: {stats['total']:,}",
+        f"Registered successfully for **{ident['torn_username']} [{ident['torn_user_id']}]**.\n"
+        f"Current total: {stats['total']:,}",
         ephemeral=True
     )
 
@@ -287,12 +329,19 @@ async def bs(interaction: discord.Interaction):
     prev = db_get_latest_snapshot(interaction.user.id)
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
 
+    # Determine display identity (Torn name + ID if present)
+    ident_row = db_get_user_torn_identity(interaction.user.id)
+    if ident_row and ident_row["torn_username"] and ident_row["torn_user_id"]:
+        who = f"{ident_row['torn_username']} [{ident_row['torn_user_id']}]"
+    else:
+        who = f"{interaction.user.display_name} [{interaction.user.id}]"
+
     # First run: store snapshot and show current only
     if prev is None:
         db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
         embed = discord.Embed(
-            title=f"Battle Stats — {interaction.user.display_name} [{interaction.user.id}]",
+            title=f"Changes to Stats for {who}",
             description=(
                 f"Total {current['total']:,}\n"
                 f"First snapshot saved.\n"
@@ -341,7 +390,7 @@ async def bs(interaction: discord.Interaction):
     db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
 
     embed = discord.Embed(
-        title=f"Battle Stats — {interaction.user.display_name} [{interaction.user.id}]",
+        title=f"Changes to Stats for {who}",
         description=(
             f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
             f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
@@ -367,12 +416,9 @@ async def bs(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed)
 
-
-
 @bot.tree.command(name="view_bs", description="(Admin) View a user's current battlestats")
 @app_commands.describe(user="User to view")
 async def view_bs(interaction: discord.Interaction, user: discord.Member):
-    # Admin-only; keep response private to avoid drama/leaks
     if not isinstance(interaction.user, discord.Member) or not is_admin_member(interaction.user):
         await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
         return
@@ -393,7 +439,8 @@ async def view_bs(interaction: discord.Interaction, user: discord.Member):
     msg = (
         f"**Battle Stats (Admin View)**\n"
         f"User: {user.mention}\n"
-        f"STR {current['strength']:,}; SPD {current['speed']:,}; DEF {current['defense']:,}; DEX {current['dexterity']:,}; TOTAL {current['total']:,}"
+        f"STR {current['strength']:,}; SPD {current['speed']:,}; DEF {current['defense']:,}; "
+        f"DEX {current['dexterity']:,}; TOTAL {current['total']:,}"
     )
     await interaction.followup.send(msg, ephemeral=True)
 

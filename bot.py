@@ -17,7 +17,7 @@ DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0") or "0")
 DB_PATH = os.getenv("DB_PATH", "/app/data/tornbot.sqlite3")
 KEY_ENCRYPTION_SECRET = os.getenv("KEY_ENCRYPTION_SECRET", "")
 
-TORN_BASE_URL = "https://api.torn.com/user/"
+TORN_BASE_URL = "https://api.torn.com/v2"
 TORN_COMMENT = "TornAPI"
 
 WIPE_COMMANDS = os.getenv("WIPE_COMMANDS", "0") == "1"
@@ -134,16 +134,25 @@ def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso:
     con.close()
 
 # ----------------------------
-# Torn API
+# Torn API (v2)
+# Base must be https://api.torn.com/v2
+# Endpoint: /user/battlestats
+# Full URL: https://api.torn.com/v2/user/battlestats
 # ----------------------------
 async def torn_fetch_battlestats(api_key: str) -> dict:
-    params = {
-        "key": api_key,
-        "comment": TORN_COMMENT,
-        "selections": "battlestats"
+    url = f"{TORN_BASE_URL}/user/battlestats"
+    headers = {
+        "Authorization": f"ApiKey {api_key}",
+        "Accept": "application/json",
+        "User-Agent": "THCBot/1.0",
     }
+
     async with aiohttp.ClientSession() as session:
-        async with session.get(TORN_BASE_URL, params=params, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+        async with session.get(
+            url,
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=20),
+        ) as resp:
             data = await resp.json()
 
     if "error" in data:
@@ -154,12 +163,21 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
     if not isinstance(bs, dict):
         raise RuntimeError("Torn response missing 'battlestats'")
 
-    # Normalise + compute total ourselves
-    strength = int(bs.get("strength", 0))
-    speed = int(bs.get("speed", 0))
-    defense = int(bs.get("defense", 0))
-    dexterity = int(bs.get("dexterity", 0))
-    total = strength + speed + defense + dexterity
+    def stat_value(name: str) -> int:
+        v = bs.get(name)
+        # v2 returns objects for the four stats: {"value": ..., "modifier": ..., "modifiers": [...]}
+        if isinstance(v, dict) and "value" in v:
+            return int(v["value"])
+        # total is usually an int
+        if isinstance(v, int):
+            return int(v)
+        return 0
+
+    strength = stat_value("strength")
+    speed = stat_value("speed")
+    defense = stat_value("defense")
+    dexterity = stat_value("dexterity")
+    total = int(bs.get("total", strength + speed + defense + dexterity))
 
     return {
         "strength": strength,
@@ -168,6 +186,7 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
         "dexterity": dexterity,
         "total": total,
     }
+
 
 # ----------------------------
 # Bot

@@ -204,7 +204,7 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
 
 async def torn_fetch_identity(api_key: str) -> dict:
     # Expected (common) shape: {"name": "...", "player_id": 123456, ...}
-    url = f"{TORN_BASE_URL}/user"
+    url = f"{TORN_BASE_URL}/user/basic"
 
     async with aiohttp.ClientSession() as session:
         async with session.get(

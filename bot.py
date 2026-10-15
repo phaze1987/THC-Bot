@@ -203,7 +203,6 @@ async def torn_fetch_battlestats(api_key: str) -> dict:
     }
 
 async def torn_fetch_identity(api_key: str) -> dict:
-    # Expected (common) shape: {"name": "...", "player_id": 123456, ...}
     url = f"{TORN_BASE_URL}/user/basic"
 
     async with aiohttp.ClientSession() as session:
@@ -218,13 +217,15 @@ async def torn_fetch_identity(api_key: str) -> dict:
         err = data["error"]
         raise RuntimeError(f"{err.get('error')} (code {err.get('code')})")
 
-    torn_name = data.get("name") or data.get("username")
-    torn_id = data.get("player_id") or data.get("user_id") or data.get("id")
+    profile = data.get("profile") or {}
+    torn_name = profile.get("name")
+    torn_id = profile.get("id")
 
     if not torn_name or not torn_id:
-        raise RuntimeError("Could not read Torn username/ID from /v2/user response")
+        raise RuntimeError("Could not read Torn username/ID from /v2/user/basic response")
 
     return {"torn_username": str(torn_name), "torn_user_id": int(torn_id)}
+
 
 # ----------------------------
 # Bot

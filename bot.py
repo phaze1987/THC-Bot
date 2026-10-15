@@ -343,8 +343,8 @@ async def bs(interaction: discord.Interaction):
     embed = discord.Embed(
         title=f"Battle Stats — {interaction.user.display_name} [{interaction.user.id}]",
         description=(
-            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n"
-            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n"
+            f"Total {prev_stats['total']:,} → {current['total']:,} ({total_pct:+.2f}%)\n",
+            f"Biggest gain: {biggest_label} ({biggest_pct:+.2f}%)\n",
             f"**Since last /bs**"
         )
         colour=discord.Colour.green() if deltas["total"] >= 0 else discord.Colour.red(),

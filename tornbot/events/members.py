@@ -4,12 +4,12 @@ from datetime import datetime, timezone
 from ..config import channel_id, channel_mention
 from ..db import (
     db_upsert_discord_member,
-    db_mark_member_left,
     db_delete_discord_member,
     db_delete_link_for_discord,
     db_delete_battlestats,
     db_delete_torn_user,
 )
+
 
 def setup(bot: discord.Client) -> None:
     @bot.event
@@ -39,14 +39,11 @@ def setup(bot: discord.Client) -> None:
         except Exception as e:
             print(f"[JOIN] ERROR: {type(e).__name__}: {e}")
 
-
     @bot.event
     async def on_member_remove(member: discord.Member):
-        left_at_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
-        db_mark_member_left(member.id, left_at_iso)
-
-    @bot.event
-    async def on_member_remove(member: discord.Member):
+        """
+        Policy A: delete everything for leavers.
+        """
         try:
             db_delete_discord_member(member.id)
 
@@ -54,5 +51,6 @@ def setup(bot: discord.Client) -> None:
             if torn_user_id is not None:
                 db_delete_battlestats(torn_user_id)
                 db_delete_torn_user(torn_user_id)
+
         except Exception as e:
             print(f"[LEAVE] ERROR: {type(e).__name__}: {e}")

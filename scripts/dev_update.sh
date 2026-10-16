@@ -8,6 +8,6 @@ if ! git diff --quiet; then
   exit 1
 fi
 git pull
-docker compose build bot-dev
-docker compose up -d bot-dev
+docker compose --env-file .env.compose build bot-dev
+docker compose --env-file .env.compose up -d bot-dev
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"

@@ -29,17 +29,6 @@ def build_bot() -> commands.Bot:
         db_upsert_discord_member(member.id, now_iso)
 
     @bot.event
-    async def on_interaction(interaction: discord.Interaction):
-        try:
-            now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
-            db_upsert_discord_member(interaction.user.id, now_iso)  # creates row if missing; won't overwrite joined_at
-            db_touch_last_seen(interaction.user.id, now_iso)
-        except Exception:
-            pass
-
-        await bot.process_application_commands(interaction)
-
-    @bot.event
     async def on_ready():
         db_init()
 

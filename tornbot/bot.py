@@ -43,12 +43,13 @@ def build_bot() -> commands.Bot:
                 print(f"[JOIN] bot.fetch_channel({cid}) -> {channel}")
 
             msg = (
-                "Oh look, a new soul has crossed over into Purgatory...\n"
-                f"Welcome {member.mention}, to The Hayabusa Clan server 🥷\n\n"
-                "👉 First thing, head over to the #registration channel and register with the BOTNAME.\n\n"
-                "🤪 We accept all kinds of idiocracy just don't be a dick.\n"
-                "🐂💩 Talk as much BS as possible. Silent = dead. 💀\n\n"
-                "Make yourself at home and prepare to become a Hayabusa warrior ⚔️"
+                f"**Yoku mairita, {member.mention}. The skies of The Hayabusa Clan open to you. 🩸**\n"
+                "You have stepped off the grime-covered streets of Torn City and into the roost of the Falcon. Here, loyalty is paid in blood and respect is earned through iron willpower.\n\n"
+                "🦅 **Initiation steps:**\n\n"
+                "1. Link your API and setup your profile in #registration.\n"
+                "2. Read our code in #rules.\n"
+                "3. Say hello to the inner circle in #faction-chat.\n\n"
+                "*Fly swift. Strike hard. Leave no survivors.*"
             )
 
             await channel.send(msg)

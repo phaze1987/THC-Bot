@@ -14,15 +14,24 @@ def db_init():
     con = db_connect()
     cur = con.cursor()
 
+
     cur.execute(
         """
     CREATE TABLE IF NOT EXISTS discord_members (
         discord_user_id INTEGER PRIMARY KEY,
         joined_at TEXT NOT NULL,
-        last_seen_at TEXT
+        last_seen_at TEXT,
+        left_at TEXT
     )
     """
     )
+
+
+    cur.execute("PRAGMA table_info(discord_members)")
+    dm_cols = {row[1] for row in cur.fetchall()}
+    if "left_at" not in dm_cols:
+        cur.execute("ALTER TABLE discord_members ADD COLUMN left_at TEXT")
+
 
     cur.execute(
         """
@@ -72,18 +81,21 @@ def db_init():
     con.close()
     
 
+
 def db_upsert_discord_member(discord_user_id: int, joined_at_iso: str):
     """
     Insert member if missing; do NOT overwrite joined_at if they already exist.
+    Also clears left_at on join/rejoin.
     """
     con = db_connect()
     cur = con.cursor()
     cur.execute(
         """
-        INSERT INTO discord_members (discord_user_id, joined_at, last_seen_at)
-        VALUES (?, ?, ?)
+        INSERT INTO discord_members (discord_user_id, joined_at, last_seen_at, left_at)
+        VALUES (?, ?, ?, NULL)
         ON CONFLICT(discord_user_id) DO UPDATE SET
-            last_seen_at=excluded.last_seen_at
+            last_seen_at=excluded.last_seen_at,
+            left_at=NULL
         """,
         (discord_user_id, joined_at_iso, joined_at_iso),
     )
@@ -213,6 +225,21 @@ def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso:
             stats["dexterity"],
             stats["total"],
         ),
+    )
+    con.commit()
+    con.close()
+
+
+def db_mark_member_left(discord_user_id: int, left_at_iso: str):
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute(
+        """
+        UPDATE discord_members
+        SET left_at = ?, last_seen_at = ?
+        WHERE discord_user_id = ?
+        """,
+        (left_at_iso, left_at_iso, discord_user_id),
     )
     con.commit()
     con.close()

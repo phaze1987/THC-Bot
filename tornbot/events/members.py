@@ -2,15 +2,16 @@ import discord
 from datetime import datetime, timezone
 
 from ..config import channel_id, channel_mention
-from ..db import db_upsert_discord_member
+from ..db import db_upsert_discord_member, db_mark_member_left
 
 
 def setup(bot: discord.Client) -> None:
     @bot.event
     async def on_member_join(member: discord.Member):
         try:
-            now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
-            db_upsert_discord_member(member.id, now_iso)
+            joined_at = member.joined_at or datetime.now(timezone.utc)
+            joined_at_iso = joined_at.replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
+            db_upsert_discord_member(member.id, joined_at_iso)
 
             cid = channel_id("sekisho-checkpoint")
             if cid <= 0:
@@ -31,3 +32,9 @@ def setup(bot: discord.Client) -> None:
             await channel.send(msg)
         except Exception as e:
             print(f"[JOIN] ERROR: {type(e).__name__}: {e}")
+
+
+@bot.event
+async def on_member_remove(member: discord.Member):
+    left_at_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
+    db_mark_member_left(member.id, left_at_iso)

@@ -3,10 +3,10 @@ set -euo pipefail
 cd /home/ubuntu/apps/thc-bot
 KEEP_PROD_IMAGES=10
 git checkout main
-if [ -n "$(git status --porcelain)" ]; then
-echo "ERROR: Working tree is dirty. Commit/stash changes before releasing."
-git status --porcelain
-exit 1
+if ! git diff --quiet; then
+  echo "ERROR: Tracked files have local modifications. Commit/stash before running."
+  git --no-pager diff --name-only
+  exit 1
 fi
 git pull
 SHA=$(git rev-parse --short HEAD)

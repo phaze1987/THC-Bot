@@ -2,10 +2,10 @@
 set -euo pipefail
 cd /home/ubuntu/apps/thc-bot
 git checkout main
-if [ -n "$(git status --porcelain)" ]; then
-echo "ERROR: Working tree is dirty. Commit/stash changes before updating."
-git status --porcelain
-exit 1
+if ! git diff --quiet; then
+  echo "ERROR: Tracked files have local modifications. Commit/stash before running."
+  git --no-pager diff --name-only
+  exit 1
 fi
 git pull
 docker compose build bot-dev

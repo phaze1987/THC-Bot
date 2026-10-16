@@ -6,7 +6,8 @@ exit 1
 fi
 OLD_SHA="$1"
 cd /home/ubuntu/apps/thc-bot
-sed -i "s/^PROD_TAG=.*/PROD_TAG=$OLD_SHA/" .env.compose
-cat .env.compose
-docker compose --env-file .env.compose up -d bot-prod
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+CURRENT_TAG=$(grep '^PROD_TAG=' .env.compose | cut -d'=' -f2 || true)
+if [ "$CURRENT_TAG" = "$OLD_SHA" ]; then
+echo "No-op: PROD_TAG is already $OLD_SHA. Nothing to roll back."
+exit 0
+fi

@@ -8,10 +8,7 @@ from .commands import register, bs, admin, misc, unlinked
 from datetime import datetime, timezone
 
 
-
-
 def build_bot() -> commands.Bot:
-    
     intents = discord.Intents.default()
     intents.members = True
     bot = commands.Bot(command_prefix="!", intents=intents)
@@ -32,6 +29,11 @@ def build_bot() -> commands.Bot:
     async def on_ready():
         db_init()
 
+        print("Local tree commands pre-sync:", [c.name for c in bot.tree.get_commands()])
+        print("bot.user.id:", bot.user.id)
+        print("bot.application_id:", bot.application_id)
+
+        # If a dev guild is configured, try guild sync first (fast iteration)
         if DEV_GUILD_ID > 0:
             guild = discord.Object(id=DEV_GUILD_ID)
 
@@ -41,24 +43,31 @@ def build_bot() -> commands.Bot:
                 print(f"WIPED guild commands for {DEV_GUILD_ID}. Set WIPE_COMMANDS=0 and restart.")
                 return
 
-            print("Local tree commands pre-sync:", [c.name for c in bot.tree.get_commands()])
-
-            print("bot.user.id:", bot.user.id)
-            print("bot.application_id:", bot.application_id)
-            print("bot.application:", bot.application)
-
-
+            # 1) Try guild sync
             await bot.tree.sync(guild=guild)
-            cmds = await bot.tree.fetch_commands(guild=guild)
-            print("Guild commands after sync:", [c.name for c in cmds])
-            print(f"Synced commands to dev guild {DEV_GUILD_ID}.")
+            guild_cmds = await bot.tree.fetch_commands(guild=guild)
+            guild_names = [c.name for c in guild_cmds]
+            print("Guild commands after sync:", guild_names)
+
+            # 2) If Discord returns none, fall back to global sync
+            if not guild_names:
+                print(
+                    f"WARNING: Guild sync returned 0 commands for {DEV_GUILD_ID}. "
+                    "Falling back to global sync (may take a few minutes)."
+                )
+                await bot.tree.sync()
+                global_cmds = await bot.tree.fetch_commands()
+                print("Global commands after sync:", [c.name for c in global_cmds])
+            else:
+                print(f"Synced commands to dev guild {DEV_GUILD_ID}.")
         else:
+            # No dev guild configured: global sync
             await bot.tree.sync()
+            global_cmds = await bot.tree.fetch_commands()
+            print("Global commands after sync:", [c.name for c in global_cmds])
             print("Synced commands globally (may take a few minutes to appear).")
 
-
         print(f"BOT_ENV={BOT_ENV} • DEV_GUILD_ID={DEV_GUILD_ID}")
-
         print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
     return bot

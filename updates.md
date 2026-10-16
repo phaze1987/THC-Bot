@@ -27,6 +27,29 @@ Prerequisites
 --.env.prod
 --.env.compose (contains PROD_TAG=...)
 
+##### SCRIPTED
+DEV UPDATE
+sudo /home/ubuntu/apps/thc-bot/scripts/dev_update.sh
+
+PROD RELEASE
+sudo /home/ubuntu/apps/thc-bot/scripts/prod_release.sh
+
+PROD ROLLBACK
+
+List all PROD versions
+docker images "thcbot" --format "table {{.Repository}}:{{.Tag}}\t{{.CreatedAt}}"
+
+List current version
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+Using TAG above to rollback
+sudo /home/ubuntu/apps/thc-bot/scripts/prod_rollback.sh <TAG>
+
+View SCRIPT
+sed -n '1,200p' /home/ubuntu/apps/thc-bot/scripts/<NAME>.sh
+
+
+##### MANUAL
 DEV — Update (pull, rebuild, restart)
 -Step 1 — Ensure you are on main and pull latest
 --git checkout main

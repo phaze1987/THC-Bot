@@ -44,9 +44,11 @@ def build_bot() -> commands.Bot:
 
             msg = (
                 "Oh look, a new soul has crossed over into Purgatory...\n"
-                f"Welcome {member.mention}, to The No Pants Purgatory Ranch server 💜\n\n"
-                "👉 Your first stop is to go to the #ocker channel and register with the bot.\n\n"
-                "Once you’re in, introduce yourself, don’t be a dick, and make yourself at home 💜"
+                f"Welcome {member.mention}, to The Hayabusa Clan server 🥷\n\n"
+                "👉 First thing, head over to the #registration channel and register with the BOTNAME.\n\n"
+                "🤪 We accept all kinds of idiocracy just don't be a dick.\n"
+                "🐂💩 Talk as much BS as possible. Silent = dead. 💀\n\n"
+                "Make yourself at home and prepare to become a Hayabusa warrior ⚔️"
             )
 
             await channel.send(msg)

@@ -3,6 +3,7 @@ import os
 TORN_BASE_URL = os.getenv("TORN_BASE_URL", "https://api.torn.com/v2")
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+BOT_ENV = os.getenv("BOT_ENV", "prod").strip().lower()
 
 DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0") or "0")
 DB_PATH = os.getenv("DB_PATH", "/app/data/tornbot.sqlite3")

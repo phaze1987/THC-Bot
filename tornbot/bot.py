@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS
+from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV
 from .db import db_init, db_upsert_discord_member
 from .commands import register, bs, admin, misc, unlinked
 
@@ -32,7 +32,7 @@ def build_bot() -> commands.Bot:
     async def on_ready():
         db_init()
 
-        if DEV_GUILD_ID:
+        if DEV_GUILD_ID > 0:
             guild = discord.Object(id=DEV_GUILD_ID)
 
             if WIPE_COMMANDS:
@@ -46,8 +46,14 @@ def build_bot() -> commands.Bot:
             print("Guild commands after sync:", [c.name for c in cmds])
             print(f"Synced commands to dev guild {DEV_GUILD_ID}.")
         else:
+            if BOT_ENV == "dev":
+                print("BOT_ENV=dev but DEV_GUILD_ID is not set. Refusing to global sync commands.")
+                return
+
             await bot.tree.sync()
             print("Synced commands globally (may take a few minutes to appear).")
+
+        print(f"BOT_ENV={BOT_ENV} • DEV_GUILD_ID={DEV_GUILD_ID}")
 
         print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 

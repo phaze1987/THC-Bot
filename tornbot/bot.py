@@ -41,6 +41,8 @@ def build_bot() -> commands.Bot:
                 print(f"WIPED guild commands for {DEV_GUILD_ID}. Set WIPE_COMMANDS=0 and restart.")
                 return
 
+            print("Local tree commands pre-sync:", [c.name for c in bot.tree.get_commands()])
+
             await bot.tree.sync(guild=guild)
             cmds = await bot.tree.fetch_commands(guild=guild)
             print("Guild commands after sync:", [c.name for c in cmds])

@@ -21,18 +21,27 @@ def build_bot() -> commands.Bot:
     misc.setup(bot)
     unlinked.setup(bot)
 
-    @bot.event
-    async def on_member_join(member: discord.Member):
+@bot.event
+async def on_member_join(member: discord.Member):
+    try:
+        print(f"[JOIN] member={member} id={member.id} guild={member.guild} guild_id={member.guild.id}")
+
         now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
         db_upsert_discord_member(member.id, now_iso)
 
         cid = channel_id("sekisho-checkpoint")
+        print(f"[JOIN] sekisho-checkpoint channel id from config: {cid}")
+
         if cid <= 0:
+            print("[JOIN] No channel id configured; skipping welcome message.")
             return
 
         channel = bot.get_channel(cid)
+        print(f"[JOIN] bot.get_channel({cid}) -> {channel}")
+
         if channel is None:
             channel = await bot.fetch_channel(cid)
+            print(f"[JOIN] bot.fetch_channel({cid}) -> {channel}")
 
         msg = (
             "Oh look, a new soul has crossed over into Purgatory...\n"
@@ -42,6 +51,9 @@ def build_bot() -> commands.Bot:
         )
 
         await channel.send(msg)
+        print("[JOIN] Welcome message sent.")
+    except Exception as e:
+        print(f"[JOIN] ERROR: {type(e).__name__}: {e}")
 
 
     @bot.event

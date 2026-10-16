@@ -1,7 +1,8 @@
 import discord
 from discord.ext import commands
 
-from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV
+from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV, channel_id
+
 from .db import db_init, db_upsert_discord_member
 from .commands import register, bs, admin, misc, unlinked
 
@@ -24,6 +25,24 @@ def build_bot() -> commands.Bot:
     async def on_member_join(member: discord.Member):
         now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
         db_upsert_discord_member(member.id, now_iso)
+
+        cid = channel_id("sekisho-checkpoint")
+        if cid <= 0:
+            return
+
+        channel = bot.get_channel(cid)
+        if channel is None:
+            channel = await bot.fetch_channel(cid)
+
+        msg = (
+            "Oh look, a new soul has crossed over into Purgatory...\n"
+            f"Welcome {member.mention}, to The No Pants Purgatory Ranch server 💜\n\n"
+            "👉 Your first stop is to go to the #ocker channel and register with the bot.\n\n"
+            "Once you’re in, introduce yourself, don’t be a dick, and make yourself at home 💜"
+        )
+
+        await channel.send(msg)
+
 
     @bot.event
     async def on_ready():

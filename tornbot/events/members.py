@@ -47,12 +47,12 @@ def setup(bot: discord.Client) -> None:
 
     @bot.event
     async def on_member_remove(member: discord.Member):
-    try:
-        db_delete_discord_member(member.id)
+        try:
+            db_delete_discord_member(member.id)
 
-        torn_user_id = db_delete_link_for_discord(member.id)
-        if torn_user_id is not None:
-            db_delete_battlestats(torn_user_id)
-            db_delete_torn_user(torn_user_id)
-    except Exception as e:
-        print(f"[LEAVE] ERROR: {type(e).__name__}: {e}")
+            torn_user_id = db_delete_link_for_discord(member.id)
+            if torn_user_id is not None:
+                db_delete_battlestats(torn_user_id)
+                db_delete_torn_user(torn_user_id)
+        except Exception as e:
+            print(f"[LEAVE] ERROR: {type(e).__name__}: {e}")

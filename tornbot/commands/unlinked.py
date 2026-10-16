@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from .admin import is_admin_member
 from ..db import db_get_unlinked_members
+from ..services.members import touch_member
 
 
 def setup(bot: discord.Client):
@@ -13,6 +14,7 @@ def setup(bot: discord.Client):
             return
 
         await interaction.response.defer(ephemeral=True)
+        touch_member(interaction.user.id)
 
         limit = max(1, min(int(limit), 100))
         rows = db_get_unlinked_members(limit=limit)

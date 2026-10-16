@@ -3,6 +3,7 @@ from discord import app_commands
 from ..config import ADMIN_ROLE_IDS
 from ..db import db_get_user_api_key
 from ..torn_api.user import fetch_battlestats
+from ..services.members import touch_member
 
 
 def is_admin_member(member: discord.Member) -> bool:
@@ -21,6 +22,7 @@ def setup(bot: discord.Client):
             return
 
         await interaction.response.defer(thinking=True, ephemeral=True)
+        touch_member(interaction.user.id)
 
         api_key = db_get_user_api_key(user.id)
         if not api_key:

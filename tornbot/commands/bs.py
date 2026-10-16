@@ -7,6 +7,8 @@ from ..db import (
     db_get_user_torn_identity,
 )
 from ..torn_api.user import fetch_battlestats
+from ..services.members import touch_member
+
 
 
 def fmt_int(n: int) -> str:
@@ -21,6 +23,7 @@ def setup(bot: discord.Client):
     @bot.tree.command(name="bs", description="Update and show your battle stat gains since last update")
     async def bs(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
+        touch_member(interaction.user.id)
 
         api_key = db_get_user_api_key(interaction.user.id)
         if not api_key:

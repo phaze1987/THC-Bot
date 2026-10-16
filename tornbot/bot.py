@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS
-from .db import db_init, db_upsert_discord_member, db_touch_last_seen
+from .db import db_init, db_upsert_discord_member
 from .commands import register, bs, admin, misc, unlinked
 
 from datetime import datetime, timezone

@@ -34,7 +34,7 @@ def setup(bot: discord.Client) -> None:
             print(f"[JOIN] ERROR: {type(e).__name__}: {e}")
 
 
-@bot.event
-async def on_member_remove(member: discord.Member):
-    left_at_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
-    db_mark_member_left(member.id, left_at_iso)
+    @bot.event
+    async def on_member_remove(member: discord.Member):
+        left_at_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
+        db_mark_member_left(member.id, left_at_iso)

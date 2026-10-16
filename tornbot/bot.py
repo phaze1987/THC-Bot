@@ -1,7 +1,9 @@
 import discord
 from discord.ext import commands
 
-from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV, channel_id
+from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV
+from .config import channel_id,channel_mention
+
 from .db import db_init, db_upsert_discord_member
 from .commands import register, bs, admin, misc, unlinked
 
@@ -43,12 +45,12 @@ def build_bot() -> commands.Bot:
                 print(f"[JOIN] bot.fetch_channel({cid}) -> {channel}")
 
             msg = (
-                f"**Yoku mairita, {member.mention}. The skies of The Hayabusa Clan open to you. 🩸**\n"
-                "You have stepped off the grime-covered streets of Torn City and into the roost of the Falcon. Here, loyalty is paid in blood and respect is earned through iron willpower.\n\n"
-                "🦅 **Initiation steps:**\n\n"
-                "1. Link your API and setup your profile in #registration.\n"
-                "2. Read our code in #rules.\n"
-                "3. Say hello to the inner circle in #faction-chat.\n\n"
+                f"**Halt. You have reaced the Sekisho of The Hayabusa Clan.** {member.mention}. 🦅\n"
+                "Beyond these gates lies the Niwa. Unmask your identity, pledge your loyalty to the shadows, and prepare your blades. Here, loyalty is paid in blood and respect is earned through iron willpower.\n\n"
+                "🥷 **To pass the checkpoint:**\n\n"
+                f"1. Show your seal and link your API in {channel_mention('menpo-identity-mask')} to verify your Torn profile.\n"
+                f"2. Study the clan tenets and sacred code in {channel_mention('hatto-scroll-of-laws')}.\n"
+                f"3. Step out of the smog and join the hidden flock in {channel_mention('kakurega-the-hideout')}.\n\n"
                 "*Fly swift. Strike hard. Leave no survivors.*"
             )
 

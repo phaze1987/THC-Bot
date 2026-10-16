@@ -112,3 +112,8 @@ def channel_id(name: str) -> int:
     Example: channel_id("welcome")
     """
     return int(CHANNEL_IDS.get(name, 0))
+
+
+def channel_mention(name: str) -> str:
+    cid = channel_id(name)
+    return f"<#{cid}>" if cid > 0 else f"#{name}"

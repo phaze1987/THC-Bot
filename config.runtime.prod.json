@@ -5,8 +5,10 @@
 
   "CHANNEL_IDS": {
     "sekisho-checkpoint": 1560736113390522418,
-    "bot": 23456,
-    "admin": 34567
+    "omitsu":12345,
+    "menpo-identity-mask": 12345,
+    "hatto-scroll-of-laws": 12345,
+    "makimono-grandmaster-scrolls": 12354
   },
 
   "ADMIN_ROLE_IDS": [1560284353156747286, 222222222222222222]

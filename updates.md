@@ -74,3 +74,46 @@ Notes / gotchas
 -On Ubuntu, python may not exist; use python3 on the host if needed.
 -Avoid reusing a moving prod tag like bootstrap; prefer immutable SHA tags for easy rollback.
 -Data lives in bind-mounted folders (data-dev, data-prod). Deploying new images should not affect data unless you manually move or overwrite these folders.
+
+######################################################
+##### Safe Commands
+######################################################
+
+Safe anytime (updates repo files only; does NOT change running containers)
+-cd /home/ubuntu/apps/thc-bot
+-git checkout main
+-git pull
+
+Notes:
+-This updates the code on disk in /home/ubuntu/apps/thc-bot.
+-Nothing running changes until you rebuild/restart a service.
+
+Safe for DEV only (applies the latest pulled code to the dev bot)
+-cd /home/ubuntu/apps/thc-bot
+-docker compose build bot-dev
+-docker compose up -d bot-dev
+
+Optional check:
+-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+PROD release only (this is what actually updates production)
+-cd /home/ubuntu/apps/thc-bot
+-git checkout main
+-git pull
+-SHA=$(git rev-parse --short HEAD)
+-docker build -t thcbot:prod-$SHA .
+-sed -i "s/^PROD_TAG=.*/PROD_TAG=$SHA/" .env.compose
+-docker compose --env-file .env.compose up -d bot-prod
+
+Optional check:
+-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+PROD rollback only (switch prod back to an older image)
+-cd /home/ubuntu/apps/thc-bot
+-sed -i "s/^PROD_TAG=.*/PROD_TAG=<oldsha>/" .env.compose
+-docker compose --env-file .env.compose up -d bot-prod
+-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+One rule to keep prod safe
+Do NOT run: docker compose up -d --build bot-prod
+Do NOT add: build: to the bot-prod service in docker-compose.yml

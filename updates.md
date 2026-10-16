@@ -27,6 +27,17 @@ Prerequisites
 --.env.prod
 --.env.compose (contains PROD_TAG=...)
 
+##### DB Query
+DEV:
+sqlite3 /home/ubuntu/apps/thc-bot/data-dev/tornbot.sqlite3 \
+"SELECT discord_user_id, joined_at, last_seen_at, left_at FROM discord_members ORDER BY joined_at DESC LIMIT 5;"
+
+
+PROD:
+sqlite3 /home/ubuntu/apps/thc-bot/data-prod/tornbot.sqlite3 \
+"SELECT discord_user_id, joined_at, last_seen_at, left_at FROM discord_members ORDER BY joined_at DESC LIMIT 5;"
+
+
 ##### SCRIPTED
 DEV UPDATE
 bash /home/ubuntu/apps/thc-bot/scripts/dev_update.sh

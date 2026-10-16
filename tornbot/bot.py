@@ -43,6 +43,11 @@ def build_bot() -> commands.Bot:
 
             print("Local tree commands pre-sync:", [c.name for c in bot.tree.get_commands()])
 
+            print("bot.user.id:", bot.user.id)
+            print("bot.application_id:", bot.application_id)
+            print("bot.application:", bot.application)
+
+
             await bot.tree.sync(guild=guild)
             cmds = await bot.tree.fetch_commands(guild=guild)
             print("Guild commands after sync:", [c.name for c in cmds])

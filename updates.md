@@ -39,8 +39,12 @@ PROD ROLLBACK
 List all PROD versions
 docker images "thcbot" --format "table {{.Repository}}:{{.Tag}}\t{{.CreatedAt}}"
 
-List current version
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+List current version/check running containers
+docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+Check what compose is running
+cd /home/ubuntu/apps/thc-bot
+docker compose ps
 
 Using TAG above to rollback
 bash /home/ubuntu/apps/thc-bot/scripts/prod_rollback.sh <TAG>

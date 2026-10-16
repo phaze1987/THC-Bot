@@ -1,0 +1,13 @@
+{
+  "DEV_GUILD_ID": 1425435231225249854,
+  "DB_PATH": "/app/data/tornbot.sqlite3",
+  "WIPE_COMMANDS": false,
+
+  "CHANNEL_IDS": {
+    "welcome": 12345,
+    "bot": 23456,
+    "admin": 34567
+  },
+
+  "ADMIN_ROLE_IDS": [1560284353156747286, 222222222222222222]
+}

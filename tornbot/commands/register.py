@@ -10,8 +10,11 @@ def setup(bot: discord.Client):
         await interaction.response.defer(ephemeral=True)
 
         api_key = (api_key or "").strip()
-        if len(api_key) < 10:
-            await interaction.followup.send("That doesn’t look like a valid API key. Try again.", ephemeral=True)
+        if len(api_key) != 16:
+            await interaction.followup.send(
+                "Invalid key format. Torn API keys are 16 characters.",
+                ephemeral=True,
+            )
             return
 
         try:
@@ -27,16 +30,26 @@ def setup(bot: discord.Client):
         cur = con.cursor()
         cur.execute(
             """
-            INSERT INTO users (discord_user_id, torn_api_key_encrypted, torn_user_id, torn_username, created_at, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+            INSERT INTO users (
+                discord_user_id,
+                torn_api_key_encrypted,
+                torn_user_id,
+                torn_username,
+                linked_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
             ON CONFLICT(discord_user_id) DO UPDATE SET
                 torn_api_key_encrypted=excluded.torn_api_key_encrypted,
                 torn_user_id=excluded.torn_user_id,
                 torn_username=excluded.torn_username,
+                linked_at=datetime('now'),
                 updated_at=datetime('now')
-        """,
+            """,
             (interaction.user.id, enc, ident["torn_user_id"], ident["torn_username"]),
         )
+
         con.commit()
         con.close()
 

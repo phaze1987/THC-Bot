@@ -2,14 +2,18 @@ import discord
 from discord.ext import commands
 
 from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS
-from .db import db_init
-from .commands import register, bs, admin, misc
+from .db import db_init, db_upsert_discord_member, db_touch_last_seen
+from .commands import register, bs, admin, misc, unlinked
+
+from datetime import datetime, timezone
 
 
 
 
 def build_bot() -> commands.Bot:
+    
     intents = discord.Intents.default()
+    intents.members = True
     bot = commands.Bot(command_prefix="!", intents=intents)
 
     # Register slash commands
@@ -17,6 +21,23 @@ def build_bot() -> commands.Bot:
     bs.setup(bot)
     admin.setup(bot)
     misc.setup(bot)
+    unlinked.setup(bot)
+
+    @bot.event
+    async def on_member_join(member: discord.Member):
+        now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
+        db_upsert_discord_member(member.id, now_iso)
+
+    @bot.event
+    async def on_interaction(interaction: discord.Interaction):
+        try:
+            now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
+            db_upsert_discord_member(interaction.user.id, now_iso)  # creates row if missing; won't overwrite joined_at
+            db_touch_last_seen(interaction.user.id, now_iso)
+        except Exception:
+            pass
+
+        await bot.process_application_commands(interaction)
 
     @bot.event
     async def on_ready():

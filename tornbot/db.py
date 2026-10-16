@@ -15,6 +15,16 @@ def db_init():
 
     cur.execute(
         """
+    CREATE TABLE IF NOT EXISTS discord_members (
+        discord_user_id INTEGER PRIMARY KEY,
+        joined_at TEXT NOT NULL,
+        last_seen_at TEXT
+    )
+    """
+    )
+
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS users (
         discord_user_id INTEGER PRIMARY KEY,
         torn_api_key_encrypted BLOB NOT NULL,
@@ -34,6 +44,15 @@ def db_init():
     if "torn_username" not in cols:
         cur.execute("ALTER TABLE users ADD COLUMN torn_username TEXT")
 
+    if "access_type" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN access_type TEXT")
+
+    if "ff_api_key_encrypted" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN ff_api_key_encrypted BLOB")
+
+    if "linked_at" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN linked_at TEXT")
+
     cur.execute(
         """
     CREATE TABLE IF NOT EXISTS battlestats_latest (
@@ -50,6 +69,62 @@ def db_init():
 
     con.commit()
     con.close()
+    
+
+def db_upsert_discord_member(discord_user_id: int, joined_at_iso: str):
+    """
+    Insert member if missing; do NOT overwrite joined_at if they already exist.
+    """
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute(
+        """
+        INSERT INTO discord_members (discord_user_id, joined_at, last_seen_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(discord_user_id) DO UPDATE SET
+            last_seen_at=excluded.last_seen_at
+        """,
+        (discord_user_id, joined_at_iso, joined_at_iso),
+    )
+    con.commit()
+    con.close()
+
+
+def db_touch_last_seen(discord_user_id: int, seen_at_iso: str):
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute(
+        """
+        UPDATE discord_members
+        SET last_seen_at = ?
+        WHERE discord_user_id = ?
+        """,
+        (seen_at_iso, discord_user_id),
+    )
+    con.commit()
+    con.close()
+
+
+def db_get_unlinked_members(limit: int = 50):
+    """
+    Members who joined (discord_members) but do not have a linked Torn user (users).
+    """
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute(
+        """
+        SELECT dm.discord_user_id, dm.joined_at, dm.last_seen_at
+        FROM discord_members dm
+        LEFT JOIN users u ON u.discord_user_id = dm.discord_user_id
+        WHERE u.discord_user_id IS NULL
+        ORDER BY dm.joined_at ASC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    rows = cur.fetchall()
+    con.close()
+    return rows
 
 
 def db_get_user_api_key(discord_user_id: int) -> str | None:
@@ -88,6 +163,29 @@ def db_get_latest_snapshot(discord_user_id: int):
     row = cur.fetchone()
     con.close()
     return row
+
+
+def db_get_user(discord_user_id: int):
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute("SELECT * FROM users WHERE discord_user_id = ?", (discord_user_id,))
+    row = cur.fetchone()
+    con.close()
+    return row
+
+
+def db_unlink_user(discord_user_id: int) -> bool:
+    con = db_connect()
+    cur = con.cursor()
+
+    cur.execute("DELETE FROM users WHERE discord_user_id = ?", (discord_user_id,))
+    removed = cur.rowcount > 0
+
+    cur.execute("DELETE FROM battlestats_latest WHERE discord_user_id = ?", (discord_user_id,))
+
+    con.commit()
+    con.close()
+    return removed
 
 
 def db_upsert_latest_snapshot(discord_user_id: int, stats: dict, updated_at_iso: str):

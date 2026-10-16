@@ -29,10 +29,10 @@ Prerequisites
 
 ##### SCRIPTED
 DEV UPDATE
-sudo /home/ubuntu/apps/thc-bot/scripts/dev_update.sh
+bash /home/ubuntu/apps/thc-bot/scripts/dev_update.sh
 
 PROD RELEASE
-sudo /home/ubuntu/apps/thc-bot/scripts/prod_release.sh
+bash /home/ubuntu/apps/thc-bot/scripts/prod_release.sh
 
 PROD ROLLBACK
 
@@ -43,7 +43,7 @@ List current version
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 
 Using TAG above to rollback
-sudo /home/ubuntu/apps/thc-bot/scripts/prod_rollback.sh <TAG>
+bash /home/ubuntu/apps/thc-bot/scripts/prod_rollback.sh <TAG>
 
 View SCRIPT
 sed -n '1,200p' /home/ubuntu/apps/thc-bot/scripts/<NAME>.sh

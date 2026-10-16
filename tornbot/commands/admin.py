@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from ..config import ADMIN_ROLE_IDS
-from ..db import db_get_user_api_key
+from ..db import db_get_torn_id_for_discord, db_get_api_key_by_torn_id
 from ..torn_api.user import fetch_battlestats
 from ..services.members import touch_member
 
@@ -24,9 +24,17 @@ def setup(bot: discord.Client):
         await interaction.response.defer(thinking=True, ephemeral=True)
         touch_member(interaction.user.id)
 
-        api_key = db_get_user_api_key(user.id)
-        if not api_key:
+        torn_user_id = db_get_torn_id_for_discord(user.id)
+        if torn_user_id is None:
             await interaction.followup.send(f"{user.mention} has not registered an API key.", ephemeral=True)
+            return
+
+        api_key = db_get_api_key_by_torn_id(torn_user_id)
+        if not api_key:
+            await interaction.followup.send(
+                f"{user.mention} is linked but no API key was found. Ask them to run /register again.",
+                ephemeral=True,
+            )
             return
 
         try:
@@ -44,4 +52,3 @@ def setup(bot: discord.Client):
             f"DEX {current['dexterity']:,}; TOTAL {current['total']:,}"
         )
         await interaction.followup.send(msg, ephemeral=True)
-

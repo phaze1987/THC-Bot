@@ -37,6 +37,8 @@ PROD:
 sqlite3 /home/ubuntu/apps/thc-bot/data-prod/tornbot.sqlite3 \
 "SELECT discord_user_id, joined_at, last_seen_at, left_at FROM discord_members ORDER BY joined_at DESC LIMIT 5;"
 
+##### logs
+docker logs --tail 200 thc-bot-bot-dev-1
 
 ##### SCRIPTED
 DEV UPDATE

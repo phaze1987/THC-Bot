@@ -1,10 +1,10 @@
 import discord
 from datetime import datetime, timezone
 from ..db import (
-    db_get_user_api_key,
+    db_get_torn_id_for_discord,
+    db_get_api_key_by_torn_id,
     db_get_latest_snapshot,
     db_upsert_latest_snapshot,
-    db_get_user_torn_identity,
 )
 from ..torn_api.user import fetch_battlestats
 from ..services.members import touch_member
@@ -25,10 +25,16 @@ def setup(bot: discord.Client):
         await interaction.response.defer(thinking=True)
         touch_member(interaction.user.id)
 
-        api_key = db_get_user_api_key(interaction.user.id)
-        if not api_key:
+        torn_user_id = db_get_torn_id_for_discord(interaction.user.id)
+        if torn_user_id is None:
             await interaction.followup.send("No API key registered. Use /register first.", ephemeral=True)
             return
+
+        api_key = db_get_api_key_by_torn_id(torn_user_id)
+        if not api_key:
+            await interaction.followup.send("Your link exists but no API key was found. Please run /register again.", ephemeral=True)
+            return
+
 
         try:
             current = await fetch_battlestats(api_key)
@@ -36,22 +42,15 @@ def setup(bot: discord.Client):
             await interaction.followup.send(f"Failed to fetch battlestats: {e}", ephemeral=True)
             return
 
-        prev = db_get_latest_snapshot(interaction.user.id)
+        prev = db_get_latest_snapshot(torn_user_id)
         now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        ident_row = db_get_user_torn_identity(interaction.user.id)
-        if ident_row and ident_row["torn_username"] and ident_row["torn_user_id"]:
-            who = f"{ident_row['torn_username']} [{ident_row['torn_user_id']}]"
-        else:
-            who = f"{interaction.user.display_name} [{interaction.user.id}]"
+        who = f"{interaction.user.display_name} [{torn_user_id}]"
+        torn_profile_url = f"https://www.torn.com/profiles.php?XID={torn_user_id}"
 
-        torn_id = None
-        if ident_row and ident_row["torn_user_id"] is not None:
-            torn_id = int(ident_row["torn_user_id"])
-        torn_profile_url = f"https://www.torn.com/profiles.php?XID={torn_id}" if torn_id else None
 
         if prev is None:
-            db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
+            db_upsert_latest_snapshot(torn_user_id, current, now_iso)
 
             embed = discord.Embed(
                 title=f"Changes to Stats for {who}",
@@ -92,7 +91,7 @@ def setup(bot: discord.Client):
         if "UTC" not in str(last_at):
             last_at = f"{last_at} UTC"
 
-        db_upsert_latest_snapshot(interaction.user.id, current, now_iso)
+        db_upsert_latest_snapshot(torn_user_id, current, now_iso)
 
         rows = [
             ("Str:", "strength"),

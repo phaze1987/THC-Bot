@@ -2,31 +2,15 @@ from datetime import datetime, timezone
 
 from ..db import db_get_latest_workingstats, db_upsert_latest_workingstats
 from ..torn_api.user import fetch_workingstats
+from .stats_common import fmt_int, pad_right, pct_change
 
 
-def fmt_int(n: int) -> str:
-    return f"{n:,}"
 
-
-def pad_right(s: str, width: int) -> str:
-    return s + (" " * max(0, width - len(s)))
-
-
-def pct_change(delta: int, base: int) -> float:
-    if base <= 0:
-        return 0.0
-    return (delta / base) * 100.0
-
-
-async def update_and_format_workingstats(torn_user_id: int, api_key: str) -> tuple[str, str]:
+async def update_and_format_workingstats(torn_user_id: int, api_key: str) -> tuple[str, str, int]:
     """
-    Fetch current workstats; compare to previous snapshot; upsert snapshot.
-    Returns: (block_text, last_at_text)
-    - block_text is a code block-ready string (no triple backticks).
-    - last_at_text is the previous snapshot timestamp (or 'First snapshot').
+    Returns: (block_text, footer_text, delta_total)
     """
     current = await fetch_workingstats(api_key)
-
     prev = db_get_latest_workingstats(torn_user_id)
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -35,15 +19,11 @@ async def update_and_format_workingstats(torn_user_id: int, api_key: str) -> tup
         lines = [
             "Old Working Stats ---> New Working Stats",
             "",
-            f"Man:  0  --->  {fmt_int(current['manual_labor'])} (0.00%)",
-            f"Int:  0  --->  {fmt_int(current['intelligence'])} (0.00%)",
-            f"End:  0  --->  {fmt_int(current['endurance'])} (0.00%)",
-            "",
-            f"Tot:  0  --->  {fmt_int(current['total'])} (0.00%)",
-            "",
-            "First snapshot saved. Run /ws again to see changes.",
+            f"Total {current['total']:,}",
+            "First snapshot saved.",
+            "Run /ws again to see changes.",
         ]
-        return ("\n".join(lines), f"First snapshot • Stats updated: {now_iso}")
+        return ("\n".join(lines), f"Saved at: {now_iso}", 0)
 
     prev_stats = {
         "manual_labor": int(prev["manual_labor"]),
@@ -101,4 +81,5 @@ async def update_and_format_workingstats(torn_user_id: int, api_key: str) -> tup
             f"{pad_right(after_s, after_w)} {pct_s}"
         )
 
-    return ("\n".join(lines), f"Changes since: {last_at} • Stats updated: {now_iso}")
+    footer = f"Changes since: {last_at} • Stats updated: {now_iso}"
+    return ("\n".join(lines), footer, int(deltas["total"]))

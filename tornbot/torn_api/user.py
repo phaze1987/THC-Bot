@@ -42,3 +42,21 @@ async def fetch_identity(api_key: str) -> dict:
         raise RuntimeError("Could not read Torn username/ID from /v2/user/basic response")
 
     return {"torn_username": str(torn_name), "torn_user_id": int(torn_id)}
+
+
+async def fetch_workingstats(api_key: str) -> dict:
+    # This depends on how your Torn API client is structured.
+    # You likely already have a generic request helper.
+    data = await torn_get(api_key, "user", selections="workstats")  # example
+    ws = data["workstats"]  # adjust to actual response shape
+
+    manual_labor = int(ws["manual_labor"])
+    intelligence = int(ws["intelligence"])
+    endurance = int(ws["endurance"])
+
+    return {
+        "manual_labor": manual_labor,
+        "intelligence": intelligence,
+        "endurance": endurance,
+        "total": manual_labor + intelligence + endurance,
+    }

@@ -67,5 +67,20 @@ def db_init():
         """
     )
 
+    # Working stats keyed by TornID
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS workingstats_latest (
+            torn_user_id INTEGER PRIMARY KEY,
+            updated_at TEXT NOT NULL,
+            manual_labor INTEGER NOT NULL,
+            intelligence INTEGER NOT NULL,
+            endurance INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            FOREIGN KEY (torn_user_id) REFERENCES torn_users(torn_user_id) ON DELETE CASCADE
+        )
+        """
+    )
+
     con.commit()
     con.close()

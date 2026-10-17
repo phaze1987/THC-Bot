@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from .config import DISCORD_TOKEN, DEV_GUILD_ID, WIPE_COMMANDS, BOT_ENV
 from .db import db_init
-from .commands import register, bs, admin, misc, unlinked
+from .commands import register, bs, ws, admin, misc, unlinked
 from .events import setup as setup_events
 
 
@@ -18,6 +18,8 @@ def build_bot() -> commands.Bot:
     admin.setup(bot)
     misc.setup(bot)
     unlinked.setup(bot)
+    ws.setup(bot)
+
 
     # Register discord events
     setup_events(bot)

@@ -27,3 +27,9 @@ from .battlestats import (
 from .reports import (
     db_get_unlinked_members,
 )
+
+from .workingstats import (
+    db_get_latest_workingstats,
+    db_upsert_latest_workingstats,
+)
+

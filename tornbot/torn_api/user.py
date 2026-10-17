@@ -45,18 +45,27 @@ async def fetch_identity(api_key: str) -> dict:
 
 
 async def fetch_workingstats(api_key: str) -> dict:
-    # This depends on how your Torn API client is structured.
-    # You likely already have a generic request helper.
-    data = await torn_get(api_key, "user", selections="workstats")  # example
-    ws = data["workstats"]  # adjust to actual response shape
+    data = await torn_get(api_key, "/user/workstats")
 
-    manual_labor = int(ws["manual_labor"])
-    intelligence = int(ws["intelligence"])
-    endurance = int(ws["endurance"])
+    ws = data.get("workstats")
+    if not isinstance(ws, dict):
+        raise RuntimeError("Torn response missing 'workstats'")
+
+    def stat_value(name: str) -> int:
+        v = ws.get(name)
+        if isinstance(v, int):
+            return int(v)
+        return 0
+
+    manual_labor = stat_value("manual_labor")
+    intelligence = stat_value("intelligence")
+    endurance = stat_value("endurance")
+    total = int(ws.get("total", manual_labor + intelligence + endurance))
 
     return {
         "manual_labor": manual_labor,
         "intelligence": intelligence,
         "endurance": endurance,
-        "total": manual_labor + intelligence + endurance,
+        "total": total,
     }
+

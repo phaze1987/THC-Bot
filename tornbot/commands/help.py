@@ -14,10 +14,6 @@ def setup(bot: discord.Client):
             "- `/bs` — Battle stats: save snapshot + show gains since last snapshot",
             "- `/ws` — Working stats: save snapshot + show gains since last snapshot",
             "",
-            "**Admin**",
-            "- `/view_bs <user>` — View a user's current battle stats (admin only)",
-            "- `/unlinked [limit]` — List members who joined but haven't registered (admin only)",
-            "",
             "**Other**",
             "- `/help` — This message",
         ]

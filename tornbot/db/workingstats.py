@@ -40,3 +40,11 @@ def db_upsert_latest_workingstats(torn_user_id: int, ws: dict, updated_at_iso: s
     )
     con.commit()
     con.close()
+
+
+def db_delete_workingstats(torn_user_id: int):
+    con = db_connect()
+    cur = con.cursor()
+    cur.execute("DELETE FROM workingstats_latest WHERE torn_user_id = ?", (torn_user_id,))
+    con.commit()
+    con.close()

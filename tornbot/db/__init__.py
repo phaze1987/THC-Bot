@@ -31,5 +31,7 @@ from .reports import (
 from .workingstats import (
     db_get_latest_workingstats,
     db_upsert_latest_workingstats,
+    db_delete_workingstats,
 )
+
 

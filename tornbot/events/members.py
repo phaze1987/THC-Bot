@@ -8,6 +8,7 @@ from ..db import (
     db_delete_link_for_discord,
     db_delete_battlestats,
     db_delete_torn_user,
+    db_delete_workingstats,
 )
 
 
@@ -50,6 +51,7 @@ def setup(bot: discord.Client) -> None:
             torn_user_id = db_delete_link_for_discord(member.id)
             if torn_user_id is not None:
                 db_delete_battlestats(torn_user_id)
+                db_delete_workingstats(torn_user_id)
                 db_delete_torn_user(torn_user_id)
 
         except Exception as e:
